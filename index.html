@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>MandelGuessr</title>
+    <link rel="stylesheet" href="./assets/style.css" charset="utf8">
+</head>
+
+<body>
+    <table class="center">
+        <tr>
+            <td colspan="2">
+                <h1>MandelGuessr</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-bottom: 10px;"> Can you find where this hyperbolic component is? </td>
+            <td style="padding-bottom: 10px; text-align: right;"> Points: <span id="points"> 0 </span></td>
+        </tr>
+        <tr>
+            <td><canvas id="clueCanvas" class="image"></canvas></td>
+            <td><canvas id="guessCanvas" class="image" tabindex=1></canvas></td>
+        </tr>
+        <tr>
+            <td style="padding-top: 10px; text-align: center;" colspan="2">Coordinates:
+                (<span id="x_complex_coord">0.00000000000000</span>,
+                <span id="y_complex_coord">0.00000000000000</span>)
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 10px; text-align: center;" colspan="2">Guess:
+                (<span id="guess_x">0.00000000000000</span>,
+                <span id="guess_y">0.00000000000000</span>)
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top: 10px; position: relative;" colspan="2">
+                <table style="position: absolute; table-layout: fixed; width:100%; text-align: center;">
+                    <tr >
+                        <td> Left Click -> Zoom in</td>
+                        <td> Right Click -> Zoom out</td>
+                        <td> Space Bar -> Pick Guess</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <script src="./js/lib.js"></script>
+</body>
+</html>
