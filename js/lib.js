@@ -204,8 +204,6 @@ const spaceHandler = (event) => {
         $id('solution_x').innerHTML = "?.????????????????"
         $id('solution_y').innerHTML = "?.????????????????"
 
-        console.log("Before newClue", guess, clue.z)
-
         pointsSpan.innerHTML = Number.parseInt(points)
         pointsAddedSpan.innerHTML = ""
         spacebarColumn.innerHTML = "Space Bar -> Pick Guess"
