@@ -24,9 +24,15 @@ let clue = {
 let mouseOn = false
 let points = 0
 let madeGuess = false
+let clueIndex = 0
 
 const pointsSpan = $id("points")
 const pointsAddedSpan = $id("pointsAdded")
+const spacebarColumn = $id("spacebarColumn")
+
+rootsPromise = fetch("./assets/roots15.json")
+    .then(response => response.json())
+    .then(roots => roots)
 
 // ------------------------------------------------------------------------------------- //
 // Plots
@@ -148,39 +154,31 @@ const eventClampedPos = (event) => {
     return [x, y]
 }
 
-const mouse_track = (mandelView) => (event) => {
-    pointer = mandelView.canvasToComplex(eventClampedPos(event))
+const mouse_track = (event) => {
+    pointer = guessView.canvasToComplex(eventClampedPos(event))
 
     $id('x_complex_coord').innerHTML = Number.parseFloat(pointer[0]).toFixed(16)
     $id('y_complex_coord').innerHTML = Number.parseFloat(pointer[1]).toFixed(16)
 }
 
-const zoom = (zoomIn, mandelView) => event => {
+const zoom = zoomIn => event => {
     if (!zoomIn) event.preventDefault()
 
-    pointer = mandelView.canvasToComplex(eventClampedPos(event))
-    mandelView.center = zoomIn
-        ? midpoint(mandelView.center, pointer)
-        : subVector(multVector(2, mandelView.center), pointer)
+    pointer = guessView.canvasToComplex(eventClampedPos(event))
+    guessView.center = zoomIn
+        ? midpoint(guessView.center, pointer)
+        : subVector(multVector(2, guessView.center), pointer)
 
-    mandelView.ppu = zoomIn
-        ? (new_ppu => new_ppu > MAX_PPU ? MAX_PPU : new_ppu)(mandelView.ppu * 2)
-        : (new_ppu => new_ppu < MIN_PPU ? MIN_PPU : new_ppu)(mandelView.ppu / 2)
+    guessView.ppu = zoomIn
+        ? (new_ppu => new_ppu > MAX_PPU ? MAX_PPU : new_ppu)(guessView.ppu * 2)
+        : (new_ppu => new_ppu < MIN_PPU ? MIN_PPU : new_ppu)(guessView.ppu / 2)
 
-    if (mandelView.ppu === MIN_PPU) { mandelView.center = [...mandelView.init_center] }
+    if (guessView.ppu === MIN_PPU) { guessView.center = [...guessView.init_center] }
 
-    mandelView.update()
+    guessView.update()
 }
 
-const addPoints = (distance) => {
-    const maxThreshold = 2.0 - Math.log2(clue.diam)
-    const r = Math.max(2.0 - Math.log2(distance), 0.0)
-    const extraPoints = Math.min(Math.round(900 * r / maxThreshold + 100), 1000)
-    points += extraPoints
-    return extraPoints
-}
-
-const pickGuess = (mandelView) => (event) => {
+const spaceHandler = (event) => {
     if (event.key == " " && mouseOn && !madeGuess) {
         guess = [...pointer]
         madeGuess = true
@@ -191,21 +189,71 @@ const pickGuess = (mandelView) => (event) => {
         const d = distance(clue.z, guess)
         pointsSpan.innerHTML = Number.parseInt(points)
         pointsAddedSpan.innerHTML = " + " + Number.parseInt(addPoints(d))
+        spacebarColumn.innerHTML = "Space Bar -> Try Again!"
+        spacebarColumn.style.color = "red"
 
-        mandelView.ppu = CANVAS_SIZE / (2 * d)
-        mandelView.center = midpoint(clue.z, guess)
-        mandelView.showAnswer = true
+        guessView.ppu = CANVAS_SIZE / (2 * d)
+        guessView.center = midpoint(clue.z, guess)
+        guessView.showAnswer = true
 
-        mandelView.update()
+        guessView.update()
+
+    } else if (event.key == " " && madeGuess) {
+        madeGuess = false
+
+        $id('solution_x').innerHTML = "?.????????????????"
+        $id('solution_y').innerHTML = "?.????????????????"
+
+        console.log("Before newClue", guess, clue.z)
+
+        pointsSpan.innerHTML = Number.parseInt(points)
+        pointsAddedSpan.innerHTML = ""
+        spacebarColumn.innerHTML = "Space Bar -> Pick Guess"
+        spacebarColumn.style.color = "black"
+
+        newClue()
     }
 }
 
-guessView.canvas.addEventListener("mousemove", mouse_track(guessView), false)
-guessView.canvas.addEventListener('click', zoom(true, guessView), false)
-guessView.canvas.addEventListener('contextmenu', zoom(false, guessView), false)
+guessView.canvas.addEventListener("mousemove", mouse_track, false)
+guessView.canvas.addEventListener('click', zoom(true), false)
+guessView.canvas.addEventListener('contextmenu', zoom(false), false)
 guessView.canvas.addEventListener("mouseover", (event) => { mouseOn = true })
 guessView.canvas.addEventListener("mouseleave", (event) => { mouseOn = false })
-guessView.canvas.addEventListener("keydown", pickGuess(guessView))
+guessView.canvas.addEventListener("keydown", spaceHandler)
+
+// ------------------------------------------------------------------------------------- //
+// Game related functions
+// ------------------------------------------------------------------------------------- //
+
+function addPoints(distance) {
+    const maxThreshold = 2.0 - Math.log2(clue.diam)
+    const r = Math.max(2.0 - Math.log2(distance), 0.0)
+    const extraPoints = Math.min(Math.round(900 * r / maxThreshold + 100), 1000)
+    points += extraPoints
+    return extraPoints
+}
+
+async function newClue() {
+    roots = await rootsPromise
+
+    clueIndex = Math.floor(Math.random() * roots.length)
+    const root = roots[clueIndex]
+
+    clue.z[0] = root.x
+    clue.z[1] = root.y
+    clue.diam = root.diam
+    guess = [...clue.z]
+
+    guessView.showAnswer = false
+    guessView.ppu = MIN_PPU
+    guessView.center = [...guessView.init_center]
+    guessView.update()
+
+    clueView.ppu = CANVAS_SIZE / clue.diam
+    clueView.center = [...clue.z]
+    clueView.update()
+}
 
 
 // ------------------------------------------------------------------------------------- //
