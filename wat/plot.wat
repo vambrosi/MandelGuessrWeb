@@ -110,7 +110,7 @@
       )
     )
     (local.set $cy_int
-      (f64.sub (local.get $origin_y)
+      (f64.add (local.get $origin_y)
         (f64.div (local.get $half_height) (local.get $ppu_f64))
       )
     )
@@ -121,7 +121,7 @@
         (then
           ;; Translate y position to y coordinate
           (local.set $cy
-            (f64.add
+            (f64.sub
               (local.get $cy_int)
               (f64.div (f64.convert_i32_u (local.get $y_pos)) (local.get $ppu_f64))
             )

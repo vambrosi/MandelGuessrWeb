@@ -1,227 +1,233 @@
+// ------------------------------------------------------------------------------------- //
+// Globals
+// ------------------------------------------------------------------------------------- //
+
 function $id(element) { return document.getElementById(element) }
 
 const WASM_PAGE_SIZE = 1024 * 64
-const CANVAS_WIDTH = 500
-const CANVAS_HEIGHT = 500
+const PALETTE_PAGES = 2
+const CANVAS_SIZE = 500
 
 const MAX_PPU = 1e16
-const MIN_PPU = CANVAS_WIDTH / 4
+const MIN_PPU = CANVAS_SIZE / 4
 
-const INIT_X = -0.5
-const INIT_Y = 0.0
+const DEFAULT_CENTER = [-0.5, 0.0]
+const DEFAULT_DIAMETER = 4.0
+const MAX_ITERS = 500
 
-let GUESS_CENTER_X = INIT_X
-let GUESS_CENTER_Y = INIT_Y
+let pointer = [0.0, 0.0]
+let guess = [-1.44754274928015, 0.00505100133824678]
+let clue = {
+    z: [-1.44754274928015, 0.00505100133824678],
+    diam: 0.0003013761759231517,
+}
+let mouseOn = false
+let points = 0
+let madeGuess = false
 
-let PPU = MIN_PPU
+const pointsSpan = $id("points")
+const pointsAddedSpan = $id("pointsAdded")
 
-const canvasToComplexCoord = (canvasDim, ppu, origin) => mousePos => origin + ((mousePos - (canvasDim / 2)) / ppu)
-const complexToCanvasCoord = (canvasDim, ppu, origin) => coord => canvasDim / 2 + ppu * (coord - origin)
+// ------------------------------------------------------------------------------------- //
+// Plots
+// ------------------------------------------------------------------------------------- //
 
-let mouse_x = canvasToComplexCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-let mouse_y = canvasToComplexCoord(CANVAS_HEIGHT, PPU, GUESS_CENTER_Y)
-let canvas_x = complexToCanvasCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-let canvas_y = complexToCanvasCoord(CANVAS_HEIGHT, PPU, GUESS_CENTER_Y)
+class MandelView {
+    center
+    init_center
+    ppu
 
-let pointer = {
-    x: 0.0,
-    y: 0.0,
+    canvas
+    ctx
+    img
+
+    showAnswer
+
+    wasmMem
+    wasmMem8
+    wasmShared
+    wasmObj
+
+    constructor(
+        canvas, center = DEFAULT_CENTER, diameter = DEFAULT_DIAMETER, showAnswer = false
+    ) {
+        this.center = [...center]
+        this.init_center = [...center]
+        this.ppu = CANVAS_SIZE / diameter
+        this.canvas = canvas
+        this.showAnswer = showAnswer
+
+        canvas.width = CANVAS_SIZE
+        canvas.height = CANVAS_SIZE
+
+        this.ctx = canvas.getContext("2d")
+        this.img = this.ctx.createImageData(canvas.width, canvas.height)
+        const pages = Math.ceil(this.img.data.length / WASM_PAGE_SIZE)
+
+        this.wasmMem = new WebAssembly.Memory({ initial: pages + PALETTE_PAGES })
+        this.wasmMem8 = new Uint8ClampedArray(this.wasmMem.buffer)
+        this.wasmShared = {
+            math: { log2: Math.log2 },
+            js: {
+                shared_mem: this.wasmMem,
+                image_offset: 0,
+                palette_offset: WASM_PAGE_SIZE * pages
+            }
+        }
+    }
+
+    async initialize() {
+        this.wasmObj = await WebAssembly.instantiateStreaming(
+            fetch("./wat/plot.wasm"),
+            this.wasmShared
+        )
+        this.wasmObj.instance.exports.gen_palette()
+        this.update()
+    }
+
+    update() {
+        this.wasmObj.instance.exports.mandel_plot(
+            CANVAS_SIZE, CANVAS_SIZE, this.center[0], this.center[1], this.ppu, MAX_ITERS
+        )
+        this.img.data.set(this.wasmMem8.slice(0, this.img.data.length))
+        this.ctx.putImageData(this.img, 0, 0)
+
+        if (!this.showAnswer) { return }
+
+        const guessCircle = new Path2D()
+        const guessCanvasCoord = this.complexToCanvas(guess)
+        guessCircle.arc(guessCanvasCoord[0], guessCanvasCoord[1], 5, 0, 2 * Math.PI)
+
+        const clueCircle = new Path2D()
+        const clueCanvasCoord = this.complexToCanvas(clue.z)
+        clueCircle.arc(clueCanvasCoord[0], clueCanvasCoord[1], 5, 0, 2 * Math.PI)
+
+        this.ctx.fillStyle = "red"
+        this.ctx.fill(guessCircle)
+        this.ctx.fill(clueCircle)
+
+        this.ctx.strokeStyle = "red"
+        this.ctx.beginPath()
+        this.ctx.moveTo(clueCanvasCoord[0], clueCanvasCoord[1])
+        this.ctx.lineTo(guessCanvasCoord[0], guessCanvasCoord[1])
+        this.ctx.stroke()
+    }
+
+    canvasToComplex(point) {
+        const real = this.center[0] + (point[0] - CANVAS_SIZE / 2) / this.ppu
+        const imag = this.center[1] - (point[1] - CANVAS_SIZE / 2) / this.ppu
+        return [real, imag]
+    }
+
+    complexToCanvas(z) {
+        const x = CANVAS_SIZE / 2 + this.ppu * (z[0] - this.center[0])
+        const y = CANVAS_SIZE / 2 - this.ppu * (z[1] - this.center[1])
+        return [x, y]
+    }
 }
 
-let guess = {
-    x: 0.0,
-    y: 0.0,
-}
+const clueView = new MandelView($id("clueCanvas"), clue.z, clue.diam, true)
+const guessView = new MandelView($id("guessCanvas"))
+guessCanvas.focus({ focusVisible: false })
 
-let solution = {
-    x: -1.78850332280616,
-    y: 0.0214310433284352,
-    diam: 7.664854858377946e-13
-}
+clueView.initialize()
+guessView.initialize()
 
-const MAX_ITERS = 500;
+// ------------------------------------------------------------------------------------- //
+// Event Listeners
+// ------------------------------------------------------------------------------------- //
 
-const offset_to_clamped_pos = (offset, dim, offsetDim) => {
+const offsetToClampedPos = (offset, dim, offsetDim) => {
     let pos = offset - ((offsetDim - dim) / 2)
     return pos < 0 ? 0 : pos > dim ? dim : pos
 }
 
-const clueCanvas = $id("clueCanvas")
-clueCanvas.width = CANVAS_WIDTH
-clueCanvas.height = CANVAS_WIDTH
+const eventClampedPos = (event) => {
+    const x = offsetToClampedPos(event.offsetX, event.target.width, event.target.offsetWidth)
+    const y = offsetToClampedPos(event.offsetY, event.target.height, event.target.offsetHeight)
+    return [x, y]
+}
 
-const guessCanvas = $id("guessCanvas")
-guessCanvas.width = CANVAS_WIDTH
-guessCanvas.height = CANVAS_HEIGHT
+const mouse_track = (mandelView) => (event) => {
+    pointer = mandelView.canvasToComplex(eventClampedPos(event))
 
-guessCanvas.setAttribute("tabindex", 0)
+    $id('x_complex_coord').innerHTML = Number.parseFloat(pointer[0]).toFixed(16)
+    $id('y_complex_coord').innerHTML = Number.parseFloat(pointer[1]).toFixed(16)
+}
 
-const clueContext = clueCanvas.getContext("2d")
-const clueImage = clueContext.createImageData(clueCanvas.width, clueCanvas.height)
-const clueImagePages = Math.ceil(clueImage.data.length / WASM_PAGE_SIZE)
+const zoom = (zoomIn, mandelView) => event => {
+    if (!zoomIn) event.preventDefault()
 
-const guessContext = guessCanvas.getContext("2d")
-const guessImage = guessContext.createImageData(guessCanvas.width, guessCanvas.height)
-const guessImagePages = Math.ceil(guessImage.data.length / WASM_PAGE_SIZE)
+    pointer = mandelView.canvasToComplex(eventClampedPos(event))
+    mandelView.center = zoomIn
+        ? midpoint(mandelView.center, pointer)
+        : subVector(multVector(2, mandelView.center), pointer)
 
-const PALETTE_PAGES = 2
+    mandelView.ppu = zoomIn
+        ? (new_ppu => new_ppu > MAX_PPU ? MAX_PPU : new_ppu)(mandelView.ppu * 2)
+        : (new_ppu => new_ppu < MIN_PPU ? MIN_PPU : new_ppu)(mandelView.ppu / 2)
 
-const wasmClueMemory = new WebAssembly.Memory({
-    initial: clueImagePages + PALETTE_PAGES
-})
-const wasmClueMemory8 = new Uint8ClampedArray(wasmClueMemory.buffer)
-const clueShared = {
-    math: {
-        log2: Math.log2,
-    },
-    js: {
-        shared_mem : wasmClueMemory,
-        image_offset : 0,
-        palette_offset : WASM_PAGE_SIZE * clueImagePages
+    if (mandelView.ppu === MIN_PPU) { mandelView.center = [...mandelView.init_center] }
+
+    mandelView.update()
+}
+
+const addPoints = (distance) => {
+    const maxThreshold = 2.0 - Math.log2(clue.diam)
+    const r = Math.max(2.0 - Math.log2(distance), 0.0)
+    const extraPoints = Math.min(Math.round(900 * r / maxThreshold + 100), 1000)
+    points += extraPoints
+    return extraPoints
+}
+
+const pickGuess = (mandelView) => (event) => {
+    if (event.key == " " && mouseOn && !madeGuess) {
+        guess = [...pointer]
+        madeGuess = true
+
+        $id('solution_x').innerHTML = Number.parseFloat(clue.z[0]).toFixed(16)
+        $id('solution_y').innerHTML = Number.parseFloat(clue.z[1]).toFixed(16)
+
+        const d = distance(clue.z, guess)
+        pointsSpan.innerHTML = Number.parseInt(points)
+        pointsAddedSpan.innerHTML = " + " + Number.parseInt(addPoints(d))
+
+        mandelView.ppu = CANVAS_SIZE / (2 * d)
+        mandelView.center = midpoint(clue.z, guess)
+        mandelView.showAnswer = true
+
+        mandelView.update()
     }
 }
 
-const wasmGuessMemory = new WebAssembly.Memory({
-    initial: guessImagePages + PALETTE_PAGES
-})
-const wasmGuessMemory8 = new Uint8ClampedArray(wasmGuessMemory.buffer)
-const guessShared = {
-    math: {
-        log2: Math.log2,
-    },
-    js: {
-        shared_mem : wasmGuessMemory,
-        image_offset : 0,
-        palette_offset : WASM_PAGE_SIZE * guessImagePages
-    }
+guessView.canvas.addEventListener("mousemove", mouse_track(guessView), false)
+guessView.canvas.addEventListener('click', zoom(true, guessView), false)
+guessView.canvas.addEventListener('contextmenu', zoom(false, guessView), false)
+guessView.canvas.addEventListener("mouseover", (event) => { mouseOn = true })
+guessView.canvas.addEventListener("mouseleave", (event) => { mouseOn = false })
+guessView.canvas.addEventListener("keydown", pickGuess(guessView))
+
+
+// ------------------------------------------------------------------------------------- //
+// Vector Operations
+// ------------------------------------------------------------------------------------- //
+
+function addVector(v1, v2) {
+    return v1.map((e, i) => e + v2[i])
 }
 
-let wasmObj
-
-const start = async () => {
-    wasmObj = await WebAssembly.instantiateStreaming(
-        fetch("./wat/plot.wasm"),
-        guessShared
-    )
-
-    const wasmClueObj = await WebAssembly.instantiateStreaming(
-        fetch("./wat/plot.wasm"),
-        clueShared
-    )
-
-    wasmObj.instance.exports.gen_palette()
-    wasmClueObj.instance.exports.gen_palette()
-
-    const start_time = performance.now()
-    wasmObj.instance.exports.mandel_plot(
-        CANVAS_WIDTH, CANVAS_HEIGHT, INIT_X, INIT_Y, PPU, MAX_ITERS
-    )
-
-    console.log(performance.now() - start_time)
-
-    wasmClueObj.instance.exports.mandel_plot(
-        CANVAS_WIDTH, CANVAS_HEIGHT, solution.x, solution.y, 500/solution.diam, MAX_ITERS
-    )
-
-    // Transfer the relevant slice of shared memory to the image, then display it in the canvas
-    guessImage.data.set(wasmGuessMemory8.slice(0, guessImage.data.length))
-    guessContext.putImageData(guessImage, 0, 0)
-
-    clueImage.data.set(wasmClueMemory8.slice(0, clueImage.data.length))
-    clueContext.putImageData(clueImage, 0, 0)
+function subVector(v1, v2) {
+    return v1.map((e, i) => e - v2[i])
 }
 
-const mouse_track = event => {
-    pointer.x = mouse_x(
-        offset_to_clamped_pos(event.offsetX, event.target.width, event.target.offsetWidth)
-    )
-    pointer.y = mouse_y(
-        offset_to_clamped_pos(event.offsetY, event.target.height, event.target.offsetHeight)
-    ) * -1
-
-    $id('x_complex_coord').innerHTML = Number.parseFloat(pointer.x).toFixed(14)
-    $id('y_complex_coord').innerHTML = Number.parseFloat(pointer.y).toFixed(14)
+function multVector(c, v) {
+    return v.map((e, i) => c * e)
 }
 
-const zoom = zoom_in => event => {
-    // Suppress default context menu when zooming out
-    if (!zoom_in) event.preventDefault()
-
-    // Transform the mouse pointer pixel location to coordinates in the complex plane
-    GUESS_CENTER_X = mouse_x(offset_to_clamped_pos(event.offsetX, event.target.width, event.target.offsetWidth))
-    GUESS_CENTER_Y = mouse_y(offset_to_clamped_pos(event.offsetY, event.target.height, event.target.offsetHeight))
-
-    // Change zoom level
-    PPU = zoom_in
-        ? (new_ppu => new_ppu > MAX_PPU ? MAX_PPU : new_ppu)(PPU * 2)
-        : (new_ppu => new_ppu < MIN_PPU ? MIN_PPU : new_ppu)(PPU / 2)
-
-    // If we're back out to the default zoom level, then reset the Mandelbrot Set image origin
-    if (PPU === MIN_PPU) {
-        GUESS_CENTER_X = INIT_X
-        GUESS_CENTER_Y = INIT_Y
-    }
-
-    // Update the mouse position helper functions using the new X/Y origin and zoom level
-    mouse_x = canvasToComplexCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-    mouse_y = canvasToComplexCoord(CANVAS_HEIGHT, PPU, GUESS_CENTER_Y)
-    canvas_x = complexToCanvasCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-    canvas_y = complexToCanvasCoord(CANVAS_HEIGHT, PPU, GUESS_CENTER_Y)
-
-    // Redraw the Mandelbrot Set
-    wasmObj.instance.exports.mandel_plot(
-        CANVAS_WIDTH, CANVAS_HEIGHT, GUESS_CENTER_X, GUESS_CENTER_Y, PPU, MAX_ITERS
-    )
-
-    guessImage.data.set(wasmGuessMemory8.slice(0, guessImage.data.length))
-    guessContext.putImageData(guessImage, 0, 0)
+function distance(v1, v2) {
+    return Math.sqrt((v1[0] - v2[0]) ** 2 + (v1[1] - v2[1]) ** 2)
 }
 
-const pickGuess = (event) => {
-    if (event.key == " ") {
-        guess.x = pointer.x
-        guess.y = pointer.y
-
-        $id('guess_x').innerHTML = Number.parseFloat(guess.x).toFixed(14)
-        $id('guess_y').innerHTML = Number.parseFloat(guess.y).toFixed(14)
-
-        const distance = (x1, y1, x2, y2) => Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-        const d = distance(guess.x, guess.y, solution.x, solution.y)
-
-        const midpoint = (x1, x2) => 0.5 * (x1 + x2)
-
-        PPU = CANVAS_WIDTH / (2 * d)
-        GUESS_CENTER_X = midpoint(solution.x, guess.x)
-        GUESS_CENTER_Y = midpoint(solution.y, guess.y)
-
-        mouse_x = canvasToComplexCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-        mouse_y = canvasToComplexCoord(CANVAS_HEIGHT, PPU, GUESS_CENTER_Y)
-        canvas_x = complexToCanvasCoord(CANVAS_WIDTH, PPU, GUESS_CENTER_X)
-        canvas_y = complexToCanvasCoord(CANVAS_HEIGHT, -PPU, GUESS_CENTER_Y)
-
-        wasmObj.instance.exports.mandel_plot(
-            CANVAS_WIDTH, CANVAS_HEIGHT, GUESS_CENTER_X, GUESS_CENTER_Y, PPU, MAX_ITERS
-        )
-
-        guessImage.data.set(wasmGuessMemory8.slice(0, guessImage.data.length))
-        guessContext.putImageData(guessImage, 0, 0)
-
-        const guessCircle = new Path2D()
-        guessCircle.arc(canvas_x(guess.x), canvas_y(guess.y), 5, 0, 2 * Math.PI)
-
-        const solutionCircle = new Path2D()
-        solutionCircle.arc(canvas_x(solution.x), canvas_y(solution.y), 5, 0, 2 * Math.PI)
-
-        guessContext.fillStyle = "red"
-        guessContext.fill(guessCircle)
-        guessContext.fill(solutionCircle)
-    }
+function midpoint(v1, v2) {
+    return multVector(0.5, addVector(v1, v2))
 }
-
-guessCanvas.addEventListener("mousemove", mouse_track, false)
-guessCanvas.addEventListener('click', zoom(true), false)
-guessCanvas.addEventListener('contextmenu', zoom(false), false)
-guessCanvas.addEventListener("keydown", pickGuess)
-
-start()
-guessCanvas.focus()
