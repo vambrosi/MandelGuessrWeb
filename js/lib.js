@@ -15,12 +15,16 @@ const DEFAULT_CENTER = [-0.5, 0.0]
 const DEFAULT_DIAMETER = 4.0
 const MAX_ITERS = 500
 
+const rootsPromise = fetch("./assets/roots15shuffled.json").then(response => response.json())
+let currentRootIndex = 0
+
 let pointer = [0.0, 0.0]
-let guess = [-1.44754274928015, 0.00505100133824678]
+let guess = [-0.185373633017024, -1.02656173723257]
 let clue = {
-    z: [-1.44754274928015, 0.00505100133824678],
-    diam: 0.0003013761759231517,
+    z: [-0.185373633017024, -1.02656173723257],
+    diam: 1e-10,
 }
+
 let mouseOn = false
 let points = 0
 let madeGuess = false
@@ -29,10 +33,6 @@ let clueIndex = 0
 const pointsSpan = $id("points")
 const pointsAddedSpan = $id("pointsAdded")
 const spacebarColumn = $id("spacebarColumn")
-
-rootsPromise = fetch("./assets/roots15.json")
-    .then(response => response.json())
-    .then(roots => roots)
 
 // ------------------------------------------------------------------------------------- //
 // Plots
@@ -235,8 +235,8 @@ function addPoints(distance) {
 async function newClue() {
     roots = await rootsPromise
 
-    clueIndex = Math.floor(Math.random() * roots.length)
-    const root = roots[clueIndex]
+    currentRootIndex = currentRootIndex + 1 % roots.length
+    const root = roots[currentRootIndex]
 
     clue.z[0] = root.x
     clue.z[1] = root.y
