@@ -236,7 +236,7 @@ const dragHandler = (pressed) => (event) => {
         if (dragged) {
             guessView.center = addVector(guessView.center, complexTranslation);
             guessView.update();
-        } else if (!dragged && event.button == 0) {
+        } else if (!dragged && event.button == 0 && !event.ctrlKey) {
             zoom(true)(event);
         }
 
