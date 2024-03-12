@@ -236,7 +236,7 @@ const dragHandler = (pressed) => (event) => {
         if (dragged) {
             guessView.center = addVector(guessView.center, complexTranslation);
             guessView.update();
-        } else if (!dragged && event.button == 0 && !event.ctrlKey) {
+        } else if (mouseOn && !dragged && event.button == 0 && !event.ctrlKey) {
             zoom(true)(event);
         }
 
@@ -252,7 +252,7 @@ const dragHandler = (pressed) => (event) => {
 
 guessView.canvas.addEventListener("mousemove", mouse_track, false);
 guessView.canvas.addEventListener("mousedown", dragHandler(true), false);
-guessView.canvas.addEventListener("mouseup", dragHandler(false), false);
+document.addEventListener("mouseup", dragHandler(false), false);
 guessView.canvas.addEventListener('contextmenu', zoom(false), false);
 guessView.canvas.addEventListener("mouseover", (event) => { mouseOn = true });
 guessView.canvas.addEventListener("mouseleave", (event) => { mouseOn = false });
