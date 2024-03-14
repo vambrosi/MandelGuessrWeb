@@ -313,7 +313,6 @@ async function newClue() {
         periodSelect.value = String(period);
     }
 
-    console.log(period, currentRootIndex[period])
     const root = roots[period][currentRootIndex[period]];
 
     clue.z[0] = root.x;
