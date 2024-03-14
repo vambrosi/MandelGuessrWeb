@@ -231,11 +231,12 @@ const spaceHandler = (event) => {
 }
 
 const dragHandler = (pressed) => (event) => {
+    if (event.button != 0) { return }
     if (!pressed) {
         if (dragged && complexTranslation) {
             guessView.center = addVector(guessView.center, complexTranslation);
             guessView.update();
-        } else if (mouseOn && !dragged && event.button == 0 && !event.ctrlKey) {
+        } else if (mouseOn && !dragged && !event.ctrlKey) {
             zoom(true)(event);
         }
 
