@@ -15,8 +15,21 @@ const DEFAULT_CENTER = [-0.5, 0.0];
 const DEFAULT_DIAMETER = 4.0;
 const MAX_ITERS = 500;
 
-const rootsPromise = fetch("./assets/roots15shuffled.json").then(response => response.json());
-let currentRootIndex = 0;
+const rootsPromise = fetch("./assets/periods2-13.json").then(response => response.json());
+let currentRootIndex = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0};
+
+const periodSelect = $id("periodSelect");
+let period = parseInt(periodSelect.value);
+
+periodSelect.addEventListener("change", (e) => {
+    if (insideNewClue) { return };
+
+    period = parseInt(periodSelect.value);
+    firstSpace = false;
+    newClue();
+});
+let firstSpace = true;
+let insideNewClue = false;
 
 let complexPointer = [-0.5, 0.0];
 let guess = [-0.185373633017024, -1.02656173723257];
@@ -83,12 +96,14 @@ class MandelView {
         };
     }
 
-    async initialize() {
+    async initialize(update=true) {
         this.wasmObj = await WebAssembly.instantiateStreaming(
             fetch("./wat/plot.wasm"),
             this.wasmShared
         );
         this.wasmObj.instance.exports.gen_palette();
+
+        if (!update) { return };
         this.update();
     }
 
@@ -142,8 +157,12 @@ const clueView = new MandelView($id("clueCanvas"), clue.z, clue.diam, true);
 const guessView = new MandelView($id("guessCanvas"));
 guessCanvas.focus({ focusVisible: false });
 
-clueView.initialize();
+clueView.initialize(false);
 guessView.initialize();
+
+clueView.ctx.font = "20px Space Mono";
+clueView.ctx.textAlign = "center";
+clueView.ctx.fillText("Press SPACE to start!", CANVAS_SIZE / 2, CANVAS_SIZE / 2);
 
 // ------------------------------------------------------------------------------------- //
 // Event Listeners
@@ -196,6 +215,10 @@ const zoom = zoomIn => event => {
 }
 
 const spaceHandler = (event) => {
+    if (firstSpace) {
+        return
+    }
+
     if (event.key == " " && mouseOn && !madeGuess) {
         guess = [...complexPointer];
         madeGuess = true;
@@ -209,23 +232,21 @@ const spaceHandler = (event) => {
         spacebarColumn.innerHTML = "Space Bar -> Try Again!";
         spacebarColumn.style.color = "red";
 
-        guessView.ppu = CANVAS_SIZE / (2 * d);
+        guessView.ppu = Math.min(CANVAS_SIZE / (2 * d), clueView.ppu);
         guessView.center = midpoint(clue.z, guess);
         guessView.showAnswer = true;
 
         guessView.update();
+        currentRootIndex[period] += 1;
 
     } else if (event.key == " " && madeGuess) {
-        madeGuess = false;
+        newClue();
+    }
+}
 
-        $id('solution_x').innerHTML = "?.????????????????";
-        $id('solution_y').innerHTML = "?.????????????????";
-
-        pointsSpan.innerHTML = Number.parseInt(points);
-        pointsAddedSpan.innerHTML = "";
-        spacebarColumn.innerHTML = "Space Bar -> Pick Guess";
-        spacebarColumn.style.color = "black";
-
+const firstSpaceHandler = (event) => {
+    if (firstSpace && event.key == " ") {
+        firstSpace = false;
         newClue();
     }
 }
@@ -255,10 +276,11 @@ const dragHandler = (pressed) => (event) => {
 guessView.canvas.addEventListener("mousemove", mouse_track, false);
 guessView.canvas.addEventListener("mousedown", dragHandler(true), false);
 document.addEventListener("mouseup", dragHandler(false), false);
+document.addEventListener("keydown", firstSpaceHandler, false)
 guessView.canvas.addEventListener('contextmenu', zoom(false), false);
 guessView.canvas.addEventListener("mouseover", (event) => { mouseOn = true });
 guessView.canvas.addEventListener("mouseleave", (event) => { mouseOn = false });
-guessView.canvas.addEventListener("keydown", spaceHandler);
+guessView.canvas.addEventListener("keydown", spaceHandler, false);
 
 // ------------------------------------------------------------------------------------- //
 // Game related functions
@@ -273,10 +295,26 @@ function addPoints(distance) {
 }
 
 async function newClue() {
+    madeGuess = false;
+    insideNewClue = true;
+
+    $id('solution_x').innerHTML = "?.????????????????";
+    $id('solution_y').innerHTML = "?.????????????????";
+
+    pointsSpan.innerHTML = Number.parseInt(points);
+    pointsAddedSpan.innerHTML = "";
+    spacebarColumn.innerHTML = "Space Bar -> Pick Guess";
+    spacebarColumn.style.color = "black";
+
     roots = await rootsPromise;
 
-    currentRootIndex = currentRootIndex + 1 % roots.length;
-    const root = roots[currentRootIndex];
+    while (currentRootIndex[period] == roots[period].length) {
+        periodSelect.value = String(period + 1);
+        period += 1;
+    }
+
+    console.log(period, currentRootIndex[period])
+    const root = roots[period][currentRootIndex[period]];
 
     clue.z[0] = root.x;
     clue.z[1] = root.y;
@@ -291,6 +329,9 @@ async function newClue() {
     clueView.ppu = CANVAS_SIZE / clue.diam;
     clueView.center = [...clue.z];
     clueView.update();
+
+    guessCanvas.focus({ focusVisible: false });
+    insideNewClue = false;
 }
 
 
