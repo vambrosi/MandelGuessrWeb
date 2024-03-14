@@ -15,8 +15,8 @@ const DEFAULT_CENTER = [-0.5, 0.0];
 const DEFAULT_DIAMETER = 4.0;
 const MAX_ITERS = 500;
 
-const rootsPromise = fetch("./assets/periods2-13.json").then(response => response.json());
-let currentRootIndex = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0};
+const rootsPromise = fetch("./assets/periods2-16.json").then(response => response.json());
+let currentRootIndex = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 16: 0};
 
 const periodSelect = $id("periodSelect");
 let period = parseInt(periodSelect.value);
@@ -309,8 +309,8 @@ async function newClue() {
     roots = await rootsPromise;
 
     while (currentRootIndex[period] == roots[period].length) {
-        periodSelect.value = String(period + 1);
-        period += 1;
+        period = period == 6 ? 8 : period == 13 ? 16 : period + 1;
+        periodSelect.value = String(period);
     }
 
     console.log(period, currentRootIndex[period])
