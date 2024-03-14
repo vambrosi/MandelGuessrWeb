@@ -106,7 +106,6 @@ class MandelView {
 
         if (!this.showAnswer) { return }
 
-        console.log(guess, clue.z)
         const guessCircle = new Path2D();
         const guessCanvasCoord = addVector(corner, this.complexToCanvas(guess));
         guessCircle.arc(guessCanvasCoord[0], guessCanvasCoord[1], 5, 0, 2 * Math.PI);
@@ -233,7 +232,7 @@ const spaceHandler = (event) => {
 
 const dragHandler = (pressed) => (event) => {
     if (!pressed) {
-        if (dragged) {
+        if (dragged && complexTranslation) {
             guessView.center = addVector(guessView.center, complexTranslation);
             guessView.update();
         } else if (mouseOn && !dragged && event.button == 0 && !event.ctrlKey) {
@@ -242,6 +241,8 @@ const dragHandler = (pressed) => (event) => {
 
         canvasDragStart = null;
         complexDragStart = null;
+        canvasTranslation = null;
+        complexTranslation = null;
         return
     }
 
