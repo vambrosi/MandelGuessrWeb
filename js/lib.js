@@ -126,6 +126,17 @@ class View {
         this.update();
     }
 
+    reset(center, diameter) {
+        this.center = [...center];
+        this.initCenter = [...center];
+        this.PPU = CANVAS_SIZE / diameter;
+        this.initPPU = CANVAS_SIZE / diameter;
+
+        const maxRadius = diameter / 2;
+        this.xlims = [this.initCenter[0] - maxRadius, this.initCenter[0] + maxRadius];
+        this.ylims = [this.initCenter[1] - maxRadius, this.initCenter[1] + maxRadius];
+    }
+
     // Plotting functions
 
     update(bounded = true) {
@@ -428,10 +439,7 @@ function newTurn(render = true) {
     guessView.center = guessView.initCenter;
     guessView.PPU = guessView.initPPU;
 
-    clueView.initCenter = clue.z;
-    clueView.center = clue.z;
-    clueView.initPPU = CANVAS_SIZE / clue.diam;
-    clueView.PPU = CANVAS_SIZE / clue.diam;
+    clueView.reset(clue.z, clue.diam);
 
     if (render) {
         guessView.update(false);
