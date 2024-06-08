@@ -6,10 +6,65 @@
     <meta name="google-site-verification" content="rV7lR0MQt1vK9JVrWEYbSlWCFtU1cuOHS__G96FWu7M" />
     <title>MandelGuessr</title>
     <link rel="stylesheet" href="./assets/style.css" charset="utf8">
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
     <link rel="shortcut icon" href="assets/favicon.ico">
 </head>
 
 <body>
+    <ul class="menu">
+      <li class="menuTitle">Commands</li>
+      <li class="menuItem">
+        Pan View
+        <span class="shortcut">Click + Drag</span>
+      </li>
+      <li class="menuItem">
+        Zoom
+        <span class="shortcut">Scroll or Pinch Zoom</span>
+      </li>
+      <li class="menuItem">
+        Pick Guess
+        <span class="shortcut">Space Bar</span>
+      </li>
+      <li class="menuItem">
+        Reset View
+        <span class="shortcut">R</span>
+      </li>
+      <li class="menuTitle">Parameters</li>
+      <li class="menuItem">
+        Component period
+        <div class="shortcut">
+            <select id="periodSelect">
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>8</option>
+                <option>9</option>
+                <option>10</option>
+                <option>11</option>
+                <option>12</option>
+                <option>13</option>
+                <option selected>16</option>
+            </select>
+        </div>
+      </li>
+      <li class="menuItem">
+        Randomize order
+        <div class="shortcut">
+            <input type="checkbox" id="randomOrderCheck" checked/>
+        </div>
+      </li>
+    </ul>
+
+    <button class="hamburger">
+      <i class="menuIcon material-icons">menu</i>
+      <i class="closeIcon material-icons" style="display: none">close</i>
+    </button>
+
     <table class="center">
         <tr>
             <td colspan="2">
@@ -19,22 +74,6 @@
         <tr>
             <td style="padding-bottom: 10px;"> Can you find where this hyperbolic component is? </td>
             <td style="padding-bottom: 10px; text-align: right;">
-                Period:
-                <select id="periodSelect">
-                    <option>2</option>
-                    <option>3</option>
-                    <option>4</option>
-                    <option>5</option>
-                    <option>6</option>
-                    <option>8</option>
-                    <option>9</option>
-                    <option>10</option>
-                    <option>11</option>
-                    <option>12</option>
-                    <option>13</option>
-                    <option selected>16</option>
-                </select>
-                &emsp;
                 Points: <span id="points"> 0 </span><span id="pointsAdded" style="color:red"></span>
             </td>
         </tr>
@@ -44,26 +83,22 @@
         </tr>
         <tr>
             <td style="padding-top: 10px; text-align: center;">
-                (<span id="solution_x">?.????????????????</span>,
-                <span id="solution_y">?.????????????????</span>)
+                (<span id="rootX">?.????????????????</span>,
+                <span id="rootY">?.????????????????</span>)
             </td>
             <td style="padding-top: 10px; text-align: center;">
-                (<span id="x_complex_coord">0.0000000000000000</span>,
-                <span id="y_complex_coord">0.0000000000000000</span>)
+                (<span id="pointerX">0.0000000000000000</span>,
+                <span id="pointerY">0.0000000000000000</span>)
             </td>
         </tr>
         <tr>
-            <td style="padding-top: 10px; text-align: center;" colspan="2">
-                <table style="width: 100%; text-align: center;">
-                    <tr>
-                        <td> Left Click -> Zoom in</td>
-                        <td id="spacebarColumn"> Space Bar -> Pick Guess</td>
-                        <td> Right Click -> Zoom out</td>
-                    </tr>
-                </table>
+            <td id="spacebarColumn" style="padding-top: 20px; text-align: center;" colspan="2">
+                Space Bar -> Pick Guess
             </td>
         </tr>
     </table>
-    <script src="./js/lib.js"></script>
+
+
+    <script type="module" src="./js/lib.js"></script>
 </body>
 </html>
