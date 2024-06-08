@@ -119,7 +119,7 @@ class View {
 
     async initialize() {
         this.wasmObj = await WebAssembly.instantiateStreaming(
-            fetch("../wat/plot.wasm"),
+            fetch("./wat/plot.wasm"),
             this.wasmShared
         );
         this.wasmObj.instance.exports.gen_palette();
@@ -424,8 +424,6 @@ function newTurn(render = true) {
     spacebarColumn.style.color = "black";
 
     clue = newClue(periodSelect.value);
-
-    console.log(currentClueIndices);
 
     guessView.center = guessView.initCenter;
     guessView.PPU = guessView.initPPU;
